@@ -71,6 +71,8 @@ result.units; // 2 (2.13 rounded down to the 0.5 U step)
 
 There are also helpers from the carb counting chapter (`netCarbs`, `carbsFromWeight`) and the book's starting-point rules (`carbRatioFromTotalDailyDose`, `sensitivityFromTotalDailyDose`, `carbRatioFromWeight`). Invalid input throws a `BolusInputError`.
 
+[`examples/dessert.js`](examples/dessert.js) compares the three strategies on the dessert case: `npm run example`.
+
 ## Development
 
 ```sh

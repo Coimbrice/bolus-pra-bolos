@@ -73,6 +73,8 @@ result.units; // 2 (2,13 arredondado para baixo no passo de 0,5 U)
 
 Também há funções do capítulo de contagem de carboidratos (`netCarbs`, `carbsFromWeight`) e as regras de estimativa inicial do livro (`carbRatioFromTotalDailyDose`, `sensitivityFromTotalDailyDose`, `carbRatioFromWeight`). Entrada inválida lança `BolusInputError`.
 
+O [`examples/dessert.js`](examples/dessert.js) compara as três estratégias no caso da sobremesa: `npm run example`.
+
 ## Desenvolvimento
 
 ```sh

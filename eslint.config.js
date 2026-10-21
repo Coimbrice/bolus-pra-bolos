@@ -5,4 +5,8 @@ export default tseslint.config(
   { ignores: ['dist'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ['examples/**'],
+    languageOptions: { globals: { console: 'readonly' } },
+  },
 );
