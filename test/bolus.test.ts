@@ -85,6 +85,28 @@ describe('calculateBolus', () => {
     expect(result.warnings).toContain('low-glucose');
   });
 
+  it('only suggests timing when digestion is given', () => {
+    expect(calculateBolus({ settings, carbs: 40, now: at(12) }).timing).toBeNull();
+    const result = calculateBolus({
+      settings,
+      carbs: 40,
+      digestion: 'fast',
+      now: at(12),
+    });
+    expect(result.timing).toEqual({ fromMinutes: -30, toMinutes: -20 });
+  });
+
+  it('delays the bolus when glucose is low', () => {
+    const result = calculateBolus({
+      settings,
+      carbs: 40,
+      glucose: 62,
+      digestion: 'fast',
+      now: at(12),
+    });
+    expect(result.timing).toEqual({ fromMinutes: 15, toMinutes: 30 });
+  });
+
   it('rejects invalid input', () => {
     expect(() => calculateBolus({ settings, carbs: -10 })).toThrow(BolusInputError);
     expect(() =>

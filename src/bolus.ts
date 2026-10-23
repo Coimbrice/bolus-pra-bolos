@@ -7,6 +7,7 @@ import {
   type InsulinModel,
 } from './insulin.js';
 import { valueAt, type Scheduled } from './schedule.js';
+import { suggestTiming, type BolusTiming, type Digestion } from './timing.js';
 import { hypoThreshold, type GlucoseUnit } from './units.js';
 
 /**
@@ -48,6 +49,8 @@ export interface BolusRequest {
   meals?: readonly Meal[];
   /** Multiplier for exercise (below 1) or long periods sitting still (above 1). */
   activityFactor?: number;
+  /** How fast the meal digests. When given, the result includes when to bolus. */
+  digestion?: Digestion;
   now?: Date;
 }
 
@@ -67,6 +70,8 @@ export interface BolusResult {
   activityFactor: number;
   /** Carbs to eat when insulin on board is more than what is needed. */
   suggestedCarbs: number;
+  /** When to bolus relative to the meal, or null if `digestion` was not given. */
+  timing: BolusTiming | null;
   warnings: BolusWarning[];
 }
 
@@ -130,7 +135,8 @@ export function calculateBolus(request: BolusRequest): BolusResult {
   }
 
   const warnings: BolusWarning[] = [];
-  if (glucose !== undefined && glucose < hypoThreshold(settings.unit)) {
+  const isLow = glucose !== undefined && glucose < hypoThreshold(settings.unit);
+  if (isLow) {
     warnings.push('low-glucose');
   }
 
@@ -158,6 +164,9 @@ export function calculateBolus(request: BolusRequest): BolusResult {
     iobApplied,
     activityFactor,
     suggestedCarbs,
+    timing: request.digestion
+      ? suggestTiming(request.digestion, { correctionDose, isLow })
+      : null,
     warnings,
   };
 }

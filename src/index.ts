@@ -27,4 +27,5 @@ export {
   type InsulinModel,
 } from './insulin.js';
 export { valueAt, type Scheduled, type ScheduleEntry } from './schedule.js';
+export { suggestTiming, type BolusTiming, type Digestion } from './timing.js';
 export { hypoThreshold, mgdlToMmol, mmolToMgdl, type GlucoseUnit } from './units.js';
