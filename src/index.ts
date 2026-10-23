@@ -3,6 +3,7 @@ export {
   type BolusRequest,
   type BolusResult,
   type BolusSettings,
+  type BolusSplit,
   type BolusWarning,
   type IobStrategy,
 } from './bolus.js';

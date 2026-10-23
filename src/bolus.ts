@@ -57,6 +57,15 @@ export interface BolusRequest {
 export type BolusWarning =
   'low-glucose' | 'insulin-on-board-exceeds-need' | 'capped-at-max';
 
+/** A dose split in two, for slow-digesting or very large meals. */
+export interface BolusSplit {
+  now: number;
+  later: number;
+  /** When to take the second part, in minutes after the start of the meal. */
+  laterFromMinutes: number;
+  laterToMinutes: number;
+}
+
 export interface BolusResult {
   /** Dose to take, rounded down to the dose step and capped at the maximum. */
   units: number;
@@ -72,6 +81,8 @@ export interface BolusResult {
   suggestedCarbs: number;
   /** When to bolus relative to the meal, or null if `digestion` was not given. */
   timing: BolusTiming | null;
+  /** Set for slow-digesting meals when the dose is big enough to split. */
+  split: BolusSplit | null;
   warnings: BolusWarning[];
 }
 
@@ -167,7 +178,21 @@ export function calculateBolus(request: BolusRequest): BolusResult {
     timing: request.digestion
       ? suggestTiming(request.digestion, { correctionDose, isLow })
       : null,
+    split: request.digestion === 'slow' ? splitDose(units, doseStep) : null,
     warnings,
+  };
+}
+
+// Half now and half 1-2 hours later, as Think Like a Pancreas suggests for slow or very
+// large meals. Pump users would do the same with an extended or dual-wave bolus.
+function splitDose(units: number, doseStep: number): BolusSplit | null {
+  const now = roundDown(units / 2, doseStep);
+  if (now === 0) return null;
+  return {
+    now,
+    later: Number((units - now).toFixed(4)),
+    laterFromMinutes: 60,
+    laterToMinutes: 120,
   };
 }
 

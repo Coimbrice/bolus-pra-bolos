@@ -107,6 +107,31 @@ describe('calculateBolus', () => {
     expect(result.timing).toEqual({ fromMinutes: 15, toMinutes: 30 });
   });
 
+  it('splits the dose for slow-digesting meals', () => {
+    const result = calculateBolus({
+      settings,
+      carbs: 75,
+      digestion: 'slow',
+      now: at(20),
+    });
+    expect(result.units).toBe(7.5);
+    expect(result.split).toEqual({
+      now: 3.5,
+      later: 4,
+      laterFromMinutes: 60,
+      laterToMinutes: 120,
+    });
+  });
+
+  it('does not split faster meals or doses too small to divide', () => {
+    expect(
+      calculateBolus({ settings, carbs: 75, digestion: 'fast', now: at(20) }).split,
+    ).toBeNull();
+    expect(
+      calculateBolus({ settings, carbs: 5, digestion: 'slow', now: at(20) }).split,
+    ).toBeNull();
+  });
+
   it('rejects invalid input', () => {
     expect(() => calculateBolus({ settings, carbs: -10 })).toThrow(BolusInputError);
     expect(() =>
