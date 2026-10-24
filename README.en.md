@@ -30,10 +30,13 @@ Carb ratio, sensitivity and target can change through the day. The dose is round
 
 **Eating again shortly after a meal.** Lunch is 60 g at a 1:10 ratio with 6 U. An hour later comes 30 g of dessert. There are still 4.5 U active, and subtracting all of it would leave the dessert uncovered. But about 40 g of lunch is still being absorbed and needs 4 U of that insulin, so only 0.5 U is extra and the right bolus is 2.5 U. This is the default `carb-aware` strategy. The book's own approaches are also available: `subtract-from-total` and `correction-only`.
 
+**When to bolus.** Given how fast the meal digests (`digestion`), the result suggests when to bolus: 20 to 30 minutes before fast food (bread, rice, potatoes), 5 to 10 minutes before moderate, and at the meal for slow, with the dose split in two halves, the second 1 to 2 hours later. Glucose moves that window earlier or later.
+
 ## Limitations
 
 - Carbs are assumed to absorb at a constant rate. Fat, protein, fiber and glycemic index change that, and fat and protein aren't counted.
 - The insulin curve is fixed, but in practice it varies with dose size, injection site, temperature and exercise.
+- The bolus timing and the half-and-half split are my interpretation of the book's guidance, which is qualitative.
 - Results depend on the history passed in: a missing dose or meal silently produces a wrong answer.
 
 ## Usage
@@ -61,12 +64,15 @@ const result = calculateBolus({
   },
   carbs: 30,
   glucose: 140,
+  digestion: 'moderate',
   doses: [{ time: new Date('2026-10-22T12:00'), units: 6 }],
   meals: [{ time: new Date('2026-10-22T12:00'), carbs: 60 }],
   now: new Date('2026-10-22T13:00'),
 });
 
 result.units; // 2 (2.13 rounded down to the 0.5 U step)
+result.timing; // { fromMinutes: -10, toMinutes: -5 }
+result.split; // null, only slow meals are split
 ```
 
 There are also helpers from the carb counting chapter (`netCarbs`, `carbsFromWeight`) and the book's starting-point rules (`carbRatioFromTotalDailyDose`, `sensitivityFromTotalDailyDose`, `carbRatioFromWeight`). Invalid input throws a `BolusInputError`.

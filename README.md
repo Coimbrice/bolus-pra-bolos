@@ -32,10 +32,13 @@ Relação, sensibilidade e alvo podem mudar ao longo do dia. A dose é arredonda
 
 **Comer de novo pouco depois de uma refeição.** Almoço de 60 g com relação 1:10 e 6 U. Uma hora depois, 30 g de sobremesa. Ainda há 4,5 U ativas, e subtraindo tudo a sobremesa ficaria sem insulina. Mas uns 40 g do almoço ainda estão sendo absorvidos e precisam de 4 U dessa insulina, então só 0,5 U está sobrando e o bolus certo é 2,5 U. Essa é a estratégia padrão, `carb-aware`. As abordagens do próprio livro também estão disponíveis: `subtract-from-total` e `correction-only`.
 
+**Quando aplicar.** Informando a velocidade de digestão (`digestion`), o resultado sugere quando aplicar: 20 a 30 minutos antes para comida rápida (pão, arroz, batata), 5 a 10 minutos antes para moderada, e na hora para lenta, com a dose dividida em duas metades, a segunda de 1 a 2 horas depois. A glicemia adianta ou atrasa essa janela.
+
 ## Limitações
 
 - A absorção dos carboidratos é tratada como constante. Gordura, proteína, fibra e índice glicêmico mudam isso, e gordura e proteína não entram na conta.
 - A curva da insulina é fixa, mas na prática varia com a dose, o local da aplicação, a temperatura e o exercício.
+- Os horários de aplicação e a divisão meio a meio são uma interpretação minha das orientações do livro, que são qualitativas.
 - O resultado depende do histórico informado: uma dose ou refeição faltando gera uma resposta errada sem nenhum aviso.
 
 ## Uso
@@ -63,12 +66,15 @@ const result = calculateBolus({
   },
   carbs: 30,
   glucose: 140,
+  digestion: 'moderate',
   doses: [{ time: new Date('2026-10-22T12:00'), units: 6 }],
   meals: [{ time: new Date('2026-10-22T12:00'), carbs: 60 }],
   now: new Date('2026-10-22T13:00'),
 });
 
 result.units; // 2 (2,13 arredondado para baixo no passo de 0,5 U)
+result.timing; // { fromMinutes: -10, toMinutes: -5 }
+result.split; // null, só refeições lentas são divididas
 ```
 
 Também há funções do capítulo de contagem de carboidratos (`netCarbs`, `carbsFromWeight`) e as regras de estimativa inicial do livro (`carbRatioFromTotalDailyDose`, `sensitivityFromTotalDailyDose`, `carbRatioFromWeight`). Entrada inválida lança `BolusInputError`.
