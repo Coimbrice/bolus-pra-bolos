@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bolus pra bolos · insulin bolus calculator demo | Coimbrice</title>
+    <meta
+      name="description"
+      content="Demo of a TypeScript library that calculates insulin boluses with the method from Think Like a Pancreas. A programming exercise, not a medical device."
+    />
+    <link rel="canonical" href="https://coimbrice.github.io/bolus-pra-bolos/" />
+    <meta name="theme-color" content="#161d15" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="fonts/schibsted.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="base.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-row">
+        <a class="site-logo" href="https://coimbrice.com/">Coimbrice</a>
+        <span class="crumb-sep" aria-hidden="true">/</span>
+        <span class="crumb" aria-current="page">Bolus pra bolos</span>
+      </div>
+    </header>
+
+    <main id="content" class="wrap page">
+      <div class="page-head">
+        <h1>Bolus pra bolos</h1>
+        <p class="lede">
+          A demo of a small TypeScript library that calculates insulin boluses with the
+          method from <em>Think Like a Pancreas</em>. Everything runs in your browser.
+        </p>
+      </div>
+
+      <p class="notice" role="note">
+        <strong>Not a medical device.</strong> This is a programming exercise. It has not
+        been clinically validated and must not be used to decide real insulin doses.
+        Always follow the guidance of your diabetes care team.
+      </p>
+
+      <div class="layout">
+        <form id="form" class="inputs" novalidate>
+          <section class="group" aria-labelledby="now-title">
+            <h2 id="now-title">Now</h2>
+            <div class="grid">
+              <div class="field">
+                <label for="carbs">Carbs about to eat</label>
+                <div class="input-affix">
+                  <input
+                    id="carbs"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span>g</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="glucose">Current glucose</label>
+                <div class="input-affix">
+                  <input
+                    id="glucose"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span class="glucose-unit">mg/dL</span>
+                </div>
+                <p class="hint">Leave empty to skip the correction.</p>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="digestion-label">How fast it digests</span>
+              <div class="seg" role="radiogroup" aria-labelledby="digestion-label">
+                <label><input type="radio" name="digestion" value="fast" />Fast</label>
+                <label
+                  ><input
+                    type="radio"
+                    name="digestion"
+                    value="moderate"
+                    checked
+                  />Moderate</label
+                >
+                <label><input type="radio" name="digestion" value="slow" />Slow</label>
+              </div>
+              <p class="hint">
+                Fast: bread, rice, potatoes, cereal. Slow: low glycemic index foods, or
+                long or very large meals.
+              </p>
+            </div>
+
+            <div class="field">
+              <span class="label" id="activity-label">Activity</span>
+              <div class="seg" role="radiogroup" aria-labelledby="activity-label">
+                <label
+                  ><input type="radio" name="activity" value="1.2" />Sitting still</label
+                >
+                <label
+                  ><input type="radio" name="activity" value="1" checked />Usual</label
+                >
+                <label
+                  ><input type="radio" name="activity" value="0.9" />Light exercise</label
+                >
+                <label><input type="radio" name="activity" value="0.75" />Moderate</label>
+                <label><input type="radio" name="activity" value="0.5" />Hard</label>
+              </div>
+              <p class="hint">
+                Exercise in the 2 hours after the meal lowers the dose; long periods
+                sitting still, like a flight, raise it.
+              </p>
+            </div>
+          </section>
+
+          <section class="group" aria-labelledby="earlier-title">
+            <h2 id="earlier-title">Earlier</h2>
+            <p class="hint">Meals and boluses from the last few hours.</p>
+            <ol id="history" class="history"></ol>
+            <button type="button" class="btn" id="add-entry">Add meal or bolus</button>
+
+            <div class="field">
+              <span class="label" id="strategy-label">Insulin on board</span>
+              <div class="seg" role="radiogroup" aria-labelledby="strategy-label">
+                <label
+                  ><input
+                    type="radio"
+                    name="strategy"
+                    value="carb-aware"
+                    checked
+                  />Carb-aware</label
+                >
+                <label
+                  ><input
+                    type="radio"
+                    name="strategy"
+                    value="subtract-from-total"
+                  />Subtract all</label
+                >
+                <label
+                  ><input
+                    type="radio"
+                    name="strategy"
+                    value="correction-only"
+                  />Correction only</label
+                >
+              </div>
+              <p class="hint" id="strategy-hint"></p>
+            </div>
+          </section>
+
+          <section class="group" aria-labelledby="settings-title">
+            <h2 id="settings-title">Settings</h2>
+            <div class="field">
+              <span class="label" id="unit-label">Glucose unit</span>
+              <div class="seg" role="radiogroup" aria-labelledby="unit-label">
+                <label
+                  ><input type="radio" name="unit" value="mg/dL" checked />mg/dL</label
+                >
+                <label><input type="radio" name="unit" value="mmol/L" />mmol/L</label>
+              </div>
+            </div>
+            <div class="grid">
+              <div class="field">
+                <label for="carb-ratio">Carb ratio</label>
+                <div class="input-affix">
+                  <span>1 U :</span>
+                  <input
+                    id="carb-ratio"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span>g</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="sensitivity">Sensitivity factor, per unit</label>
+                <div class="input-affix">
+                  <input
+                    id="sensitivity"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span class="glucose-unit">mg/dL</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="target">Target</label>
+                <div class="input-affix">
+                  <input
+                    id="target"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span class="glucose-unit">mg/dL</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="duration">Insulin action</label>
+                <div class="input-affix">
+                  <input
+                    id="duration"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span>h</span>
+                </div>
+              </div>
+              <div class="field">
+                <label for="dose-step">Pen or pump step</label>
+                <select id="dose-step" class="select">
+                  <option value="0.1">0.1 U</option>
+                  <option value="0.5" selected>0.5 U</option>
+                  <option value="1">1 U</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="max-bolus">Maximum bolus</label>
+                <div class="input-affix">
+                  <input
+                    id="max-bolus"
+                    class="input"
+                    inputmode="decimal"
+                    autocomplete="off"
+                  />
+                  <span>U</span>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <span class="label" id="curve-label">Insulin action curve</span>
+              <div class="seg" role="radiogroup" aria-labelledby="curve-label">
+                <label
+                  ><input type="radio" name="curve" value="linear" checked />Linear</label
+                >
+                <label
+                  ><input
+                    type="radio"
+                    name="curve"
+                    value="exponential"
+                  />Exponential</label
+                >
+              </div>
+              <p class="hint">
+                Linear is the book's estimate. Exponential is the curve used by Loop and
+                OpenAPS, peaking at 75 minutes, so it needs an action time over 2.5 hours.
+              </p>
+            </div>
+          </section>
+        </form>
+
+        <aside class="result panel" aria-live="polite">
+          <h2 class="result-title">Bolus</h2>
+          <div class="dose">
+            <strong id="dose" class="num">–</strong>
+            <span id="timing"></span>
+          </div>
+          <p id="split" class="split" hidden></p>
+          <p id="error" class="error" hidden></p>
+          <dl id="breakdown" class="summary"></dl>
+          <ul id="warnings" class="warnings"></ul>
+          <button type="button" class="btn btn-quiet" id="example">
+            Load the dessert example
+          </button>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <p>© <span data-year>2026</span> Coimbrice</p>
+        <ul class="social-links" aria-label="Links">
+          <li>
+            <a href="https://github.com/Coimbrice/bolus-pra-bolos">Source on GitHub</a>
+          </li>
+          <li><a href="https://coimbrice.com/">coimbrice.com</a></li>
+        </ul>
+      </div>
+    </footer>
+
+    <template id="entry-template">
+      <li class="entry">
+        <div class="field">
+          <label>Minutes ago</label>
+          <input class="input" name="minutesAgo" inputmode="numeric" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Carbs</label>
+          <div class="input-affix">
+            <input class="input" name="carbs" inputmode="decimal" autocomplete="off" />
+            <span>g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Bolus</label>
+          <div class="input-affix">
+            <input class="input" name="units" inputmode="decimal" autocomplete="off" />
+            <span>U</span>
+          </div>
+        </div>
+        <button type="button" class="remove" aria-label="Remove">×</button>
+      </li>
+    </template>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
