@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Coimbrice/bolus-pra-bolos/actions/workflows/ci.yml/badge.svg)](https://github.com/Coimbrice/bolus-pra-bolos/actions/workflows/ci.yml)
 
-Biblioteca em TypeScript para calcular bolus de insulina, baseada no método do livro _Think Like a Pancreas_, de Gary Scheiner.
+Biblioteca em TypeScript para calcular bolus de insulina, baseada no método do livro _Think Like a Pancreas_, de Gary Scheiner. Dá para testar na [página de demonstração](https://coimbrice.github.io/bolus-pra-bolos/).
 
 > [!WARNING]
 > **Isto não é um dispositivo médico e não deve ser usado para decidir tratamentos.** É um exercício de programação, sem aprovação de agência reguladora, sem validação clínica e sem nenhuma garantia (veja a [LICENSE](LICENSE)). Erros de dose de insulina podem causar hipo ou hiperglicemia graves. Siga sempre a orientação da sua equipe médica. Quem construir algo em cima deste código é responsável pela segurança e pela regulação no próprio país.
@@ -89,6 +89,8 @@ npm test
 npm run lint
 npm run typecheck
 ```
+
+A página de demonstração fica em [`site/`](site/). Para ver localmente, rode `npm run site` e depois `python3 -m http.server -d _site`.
 
 ## Como foi feito
 
