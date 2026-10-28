@@ -11,6 +11,8 @@ export default tseslint.config(
   },
   {
     files: ['site/**'],
-    languageOptions: { globals: { document: 'readonly' } },
+    languageOptions: {
+      globals: { document: 'readonly', localStorage: 'readonly', navigator: 'readonly' },
+    },
   },
 );

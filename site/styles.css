@@ -200,3 +200,40 @@
     border-radius: var(--radius);
   }
 }
+
+.lang-switch {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  align-self: center;
+}
+
+.lang-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lang-switch button:hover {
+  border-color: var(--border);
+}
+
+.lang-switch button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.flag {
+  flex-shrink: 0;
+  width: 20px;
+  height: 14px;
+  border-radius: 2px;
+}

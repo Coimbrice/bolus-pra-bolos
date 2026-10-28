@@ -1,4 +1,5 @@
 import { BolusInputError, calculateBolus, mgdlToMmol, mmolToMgdl } from './lib/index.js';
+import { STRINGS } from './i18n.js';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -6,20 +7,7 @@ const form = $('#form');
 const historyList = $('#history');
 const entryTemplate = $('#entry-template');
 
-const STRATEGY_HINTS = {
-  'carb-aware':
-    'Only subtracts the insulin not already covering carbs from earlier meals that are still being absorbed.',
-  'subtract-from-total':
-    'Subtracts all active insulin from the new bolus, as the book does by default.',
-  'correction-only':
-    'Active insulin only offsets the correction, as the book suggests after slow or very large meals.',
-};
-
-const WARNINGS = {
-  'low-glucose': 'Glucose is low. Treat the low first.',
-  'insulin-on-board-exceeds-need': 'Active insulin is more than what is needed.',
-  'capped-at-max': 'The dose was capped at the maximum bolus.',
-};
+const LANGUAGE_KEY = 'bolus-pra-bolos-language';
 
 const EXAMPLE = {
   carbs: '30',
@@ -38,7 +26,20 @@ const SETTINGS = {
   'max-bolus': '15',
 };
 
+let lang = initialLanguage();
+let t = STRINGS[lang];
 let nextEntryId = 0;
+
+function initialLanguage() {
+  try {
+    const saved = localStorage.getItem(LANGUAGE_KEY);
+    if (saved in STRINGS) return saved;
+  } catch {
+    // Storage can be blocked; fall back to the browser language.
+  }
+  const preferred = navigator.languages?.[0] ?? navigator.language ?? '';
+  return preferred.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en';
+}
 
 function parseNumber(text) {
   const value = String(text).trim().replace(',', '.');
@@ -46,7 +47,12 @@ function parseNumber(text) {
 }
 
 function format(value, digits = 2) {
-  return String(Number(value.toFixed(digits)));
+  // `|| 0` turns -0 into 0, so a tiny negative correction doesn't show as "-0".
+  const rounded = Number(value.toFixed(digits)) || 0;
+  return new Intl.NumberFormat(lang, {
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  }).format(rounded);
 }
 
 function checked(name) {
@@ -57,15 +63,65 @@ function check(name, value) {
   form.querySelector(`input[name="${name}"][value="${value}"]`).checked = true;
 }
 
-function required(id, label) {
-  const value = parseNumber($(`#${id}`).value);
-  if (Number.isNaN(value)) throw new BolusInputError(`Enter the ${label}.`);
+function validate(value, labelKey, rule) {
+  if (rule === 'positive' && !(value > 0))
+    throw new BolusInputError(t.notPositive(t[labelKey]));
+  if (rule === 'non-negative' && value < 0)
+    throw new BolusInputError(t.negative(t[labelKey]));
   return value;
 }
 
-function optional(id) {
+function required(id, labelKey, rule = 'positive') {
   const value = parseNumber($(`#${id}`).value);
-  return Number.isNaN(value) ? undefined : value;
+  if (Number.isNaN(value)) throw new BolusInputError(t.missing(t[labelKey]));
+  return validate(value, labelKey, rule);
+}
+
+function optional(id, labelKey) {
+  const value = parseNumber($(`#${id}`).value);
+  return Number.isNaN(value) ? undefined : validate(value, labelKey, 'positive');
+}
+
+function translate(root) {
+  for (const node of root.querySelectorAll('[data-i18n]')) {
+    node.textContent = t[node.dataset.i18n];
+  }
+  for (const node of root.querySelectorAll('[data-i18n-html]')) {
+    node.innerHTML = t[node.dataset.i18nHtml];
+  }
+  for (const node of root.querySelectorAll('[data-i18n-aria]')) {
+    node.setAttribute('aria-label', t[node.dataset.i18nAria]);
+  }
+}
+
+function setLanguage(next) {
+  const values = [...form.querySelectorAll('input[inputmode="decimal"]')].map((input) => [
+    input,
+    parseNumber(input.value),
+  ]);
+
+  lang = next;
+  t = STRINGS[lang];
+  try {
+    localStorage.setItem(LANGUAGE_KEY, lang);
+  } catch {
+    // Not remembering the choice is fine.
+  }
+
+  document.documentElement.lang = lang;
+  document.title = t.title;
+  translate(document);
+  translate(entryTemplate.content);
+  for (const button of document.querySelectorAll('[data-lang]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+  }
+  for (const option of $('#dose-step').options) {
+    option.textContent = `${format(Number(option.value), 1)} U`;
+  }
+  for (const [input, value] of values) {
+    if (!Number.isNaN(value)) input.value = format(value, 4);
+  }
+  update();
 }
 
 function addEntry(values = { minutesAgo: '', carbs: '', units: '' }) {
@@ -87,41 +143,43 @@ function readHistory(now) {
   const doses = [];
   const meals = [];
   for (const row of historyList.children) {
-    const minutesAgo = parseNumber(row.querySelector('[name="minutesAgo"]').value);
+    const read = (name) => parseNumber(row.querySelector(`[name="${name}"]`).value);
+    const minutesAgo = read('minutesAgo');
     if (Number.isNaN(minutesAgo)) continue;
+    validate(minutesAgo, 'minutesAgo', 'non-negative');
     const time = new Date(now.getTime() - minutesAgo * 60_000);
-    const carbs = parseNumber(row.querySelector('[name="carbs"]').value);
-    const units = parseNumber(row.querySelector('[name="units"]').value);
-    if (carbs > 0) meals.push({ time, carbs });
-    if (units > 0) doses.push({ time, units });
+    const carbs = read('carbs');
+    const units = read('units');
+    if (validate(carbs, 'entryCarbs', 'non-negative') > 0) meals.push({ time, carbs });
+    if (validate(units, 'entryBolus', 'non-negative') > 0) doses.push({ time, units });
   }
   return { doses, meals };
 }
 
+function readInsulinModel() {
+  const durationHours = required('duration', 'duration');
+  if (checked('curve') === 'linear') return { type: 'linear', durationHours };
+  if (durationHours <= 2.5) throw new BolusInputError(t.curveTooShort);
+  return { type: 'exponential', durationHours, peakMinutes: 75 };
+}
+
 function readRequest() {
   const now = new Date();
-  const maxBolus = optional('max-bolus');
-  const glucose = optional('glucose');
+  const maxBolus = optional('max-bolus', 'maxBolus');
+  const glucose = optional('glucose', 'glucose');
   const settings = {
     unit: checked('unit'),
-    carbRatio: required('carb-ratio', 'carb ratio'),
-    sensitivity: required('sensitivity', 'sensitivity factor'),
+    carbRatio: required('carb-ratio', 'carbRatio'),
+    sensitivity: required('sensitivity', 'sensitivity'),
     target: required('target', 'target'),
-    insulinModel:
-      checked('curve') === 'linear'
-        ? { type: 'linear', durationHours: required('duration', 'insulin action time') }
-        : {
-            type: 'exponential',
-            durationHours: required('duration', 'insulin action time'),
-            peakMinutes: 75,
-          },
+    insulinModel: readInsulinModel(),
     doseStep: Number($('#dose-step').value),
     iobStrategy: checked('strategy'),
     ...(maxBolus === undefined ? {} : { maxBolus }),
   };
   return {
     settings,
-    carbs: required('carbs', 'carbs'),
+    carbs: required('carbs', 'carbs', 'non-negative'),
     ...(glucose === undefined ? {} : { glucose }),
     ...readHistory(now),
     activityFactor: Number(checked('activity')),
@@ -131,21 +189,21 @@ function readRequest() {
 }
 
 function describeTiming({ fromMinutes, toMinutes }) {
-  if (fromMinutes === 0 && toMinutes === 0) return 'Take it as you start eating.';
-  if (toMinutes < 0)
-    return `Take it ${-toMinutes} to ${-fromMinutes} minutes before eating.`;
-  return `Take it ${fromMinutes} to ${toMinutes} minutes after you start eating.`;
+  if (fromMinutes === 0 && toMinutes === 0) return t.atStart;
+  if (toMinutes < 0) return t.before(-toMinutes, -fromMinutes);
+  return t.after(fromMinutes, toMinutes);
 }
 
 function renderBreakdown(result) {
+  const labels = t.breakdown;
   const rows = [
-    ['Food dose', `${format(result.foodDose)} U`],
-    ['Correction', `${format(result.correctionDose)} U`],
-    ['Insulin on board', `${format(result.insulinOnBoard)} U`],
-    ['Carbs on board', `${format(result.carbsOnBoard, 0)} g`],
-    ['IOB subtracted', `${format(result.iobApplied)} U`],
-    ['Activity', `× ${result.activityFactor}`],
-    ['Before rounding', `${format(result.unroundedUnits)} U`],
+    [labels.food, `${format(result.foodDose)} U`],
+    [labels.correction, `${format(result.correctionDose)} U`],
+    [labels.iob, `${format(result.insulinOnBoard)} U`],
+    [labels.cob, `${format(result.carbsOnBoard, 0)} g`],
+    [labels.iobApplied, `${format(result.iobApplied)} U`],
+    [labels.activity, `× ${format(result.activityFactor)}`],
+    [labels.unrounded, `${format(result.unroundedUnits)} U`],
   ];
   $('#breakdown').replaceChildren(
     ...rows.flatMap(([label, value]) => {
@@ -159,10 +217,8 @@ function renderBreakdown(result) {
 }
 
 function renderWarnings(result) {
-  const messages = result.warnings.map((code) => WARNINGS[code]);
-  if (result.suggestedCarbs > 0) {
-    messages.push(`Consider eating about ${result.suggestedCarbs} g of carbs.`);
-  }
+  const messages = result.warnings.map((code) => t.warnings[code]);
+  if (result.suggestedCarbs > 0) messages.push(t.suggestCarbs(result.suggestedCarbs));
   $('#warnings').replaceChildren(
     ...messages.map((message) => {
       const li = document.createElement('li');
@@ -173,7 +229,7 @@ function renderWarnings(result) {
 }
 
 function update() {
-  $('#strategy-hint').textContent = STRATEGY_HINTS[checked('strategy')];
+  $('#strategy-hint').textContent = t.strategyHints[checked('strategy')];
 
   let result;
   try {
@@ -198,9 +254,12 @@ function update() {
   split.hidden = !result.split;
   if (result.split) {
     const { now, later, laterFromMinutes, laterToMinutes } = result.split;
-    split.textContent = `Split it: ${format(now)} U now and ${format(later)} U ${
-      laterFromMinutes / 60
-    } to ${laterToMinutes / 60} hours later.`;
+    split.textContent = t.split(
+      format(now),
+      format(later),
+      format(laterFromMinutes / 60),
+      format(laterToMinutes / 60),
+    );
   }
 
   renderBreakdown(result);
@@ -252,9 +311,13 @@ $('#add-entry').addEventListener('click', () => {
   update();
 });
 $('#example').addEventListener('click', loadExample);
+for (const button of document.querySelectorAll('[data-lang]')) {
+  button.addEventListener('click', () => setLanguage(button.dataset.lang));
+}
 
 for (const node of document.querySelectorAll('[data-year]')) {
   node.textContent = new Date().getFullYear();
 }
 
 loadExample();
+setLanguage(lang);
