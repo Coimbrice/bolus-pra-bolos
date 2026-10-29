@@ -237,3 +237,28 @@
   height: 14px;
   border-radius: 2px;
 }
+
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: center;
+  margin-left: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.brand-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+@media (max-width: 560px) {
+  .header-link span,
+  .crumb-sep,
+  .crumb {
+    display: none;
+  }
+}
